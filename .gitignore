@@ -1,0 +1,5 @@
+*.pyc
+.venv/Lib/
+.venv/pyvenv.cfg
+.venv/Scripts/
+.venv/Share/
