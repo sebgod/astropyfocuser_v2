@@ -22,18 +22,11 @@ from photutils import IRAFStarFinder
 from typing import Dict, Tuple
 
 testDataPath = Path.cwd().joinpath('testdata')
-frame1Name = 'frame_30s_250mm.fits'
+
 frameSequenceNames = [
     'frame_2022-03-26-1135_6_Luminance_00001.fits',
     'frame_2022-03-26-1137_6_Luminance_00002.fits',
     'frame_2022-03-26-1139_6_Luminance_00003.fits',
-    'frame_2022-03-26-1141_6_Luminance_00004.fits',
-    'frame_2022-03-26-1144_5_Luminance_00005.fits',
-    'frame_2022-03-26-1146_5_Luminance_00006.fits',
-    'frame_2022-03-26-1148_5_Luminance_00007.fits',
-    'frame_2022-03-26-1150_5_Luminance_00008.fits',
-    'frame_2022-03-26-1152_5_Luminance_00009.fits',
-    'frame_2022-03-26-1154_5_Luminance_00010.fits',
     'frame_2022-03-26-1156_5_Luminance_00011.fits',
     'frame_2022-03-26-1158_5_Luminance_00012.fits',
     'frame_2022-03-26-1200_5_Luminance_00013.fits',
@@ -45,10 +38,6 @@ frameSequenceNames = [
     'frame_2022-03-26-1216_7_Luminance_00021.fits',
     'frame_2022-03-26-1218_7_Luminance_00022.fits',
     'frame_2022-03-26-1220_7_Luminance_00023.fits',
-    'frame_2022-03-26-1222_7_Luminance_00024.fits',
-    'frame_2022-03-26-1224_7_Luminance_00025.fits',
-    'frame_2022-03-26-1226_7_Luminance_00026.fits',
-    'frame_2022-03-26-1228_7_Luminance_00027.fits',
     'frame_2022-03-26-1230_7_Luminance_00028.fits',
     'frame_2022-03-26-1233_6_Luminance_00029.fits',
     'frame_2022-03-26-1235_6_Luminance_00030.fits',
