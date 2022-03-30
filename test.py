@@ -6,15 +6,15 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from astropy.io import fits
-from astropy.stats import gaussian_sigma_to_fwhm
+from astropy.stats import gaussian_sigma_to_fwhm, SigmaClip
 from astropy.table import QTable
 from astropy.visualization import simple_norm
 
 from pathlib import Path
 
-from photutils.aperture import CircularAperture, ApertureStats
+from photutils.aperture import CircularAperture, ApertureStats, CircularAnnulus
 from photutils.centroids import centroid_quadratic
-from photutils.detection import find_peaks, IRAFStarFinder
+from photutils.detection import find_peaks
 from photutils.background import MADStdBackgroundRMS
 
 from typing import Dict, Tuple
@@ -105,12 +105,18 @@ def find_duplicates(tbl : QTable, delta: float = 0.3):
 
     tbl.remove_rows(sorted(rows_to_delete))
 
-def calc_fwhm(tbl : QTable, data : np.ndarray, radius = 4.) -> QTable:
+def calc_fwhm(tbl : QTable, data : np.ndarray, radius = 3.) -> QTable:
     centroids = np.transpose((tbl['x_centroid'], tbl['y_centroid']))
     aperture = CircularAperture(centroids, radius)
+    annulus_aperture  = CircularAnnulus(centroids, r_in=radius * 2, r_out=radius * 3)
+    sigclip = SigmaClip(sigma=3, maxiters=5)
 
-    aperstats = ApertureStats(data, aperture)
-    stars = aperstats.to_table()
+    # aper_stats = ApertureStats(data, aperture, sigma_clip=None)
+    bkg_stats = ApertureStats(data, annulus_aperture, sigma_clip=sigclip)
+
+    aper_stats_bkgsub = ApertureStats(data, aperture, local_bkg=bkg_stats.median)
+
+    stars = aper_stats_bkgsub.to_table()
     star_count = len(stars)
     to_remove = []
     for i in range(0, star_count):
@@ -119,7 +125,8 @@ def calc_fwhm(tbl : QTable, data : np.ndarray, radius = 4.) -> QTable:
             to_remove.append(i)
     
     stars.remove_rows(to_remove)
-    stars.show_in_browser()
+
+    # stars.show_in_browser()
     return stars
 
 def find_brightest_stars(data : np.ndarray) -> QTable:
