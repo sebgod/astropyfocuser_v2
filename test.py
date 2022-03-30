@@ -7,17 +7,15 @@ import matplotlib.pyplot as plt
 
 from astropy.io import fits
 from astropy.stats import gaussian_sigma_to_fwhm
-from astropy.table import Column,QTable
+from astropy.table import QTable
 from astropy.visualization import simple_norm
 
 from pathlib import Path
 
-from photutils.aperture import CircularAperture
+from photutils.aperture import CircularAperture, ApertureStats
 from photutils.centroids import centroid_quadratic
-from photutils.detection import find_peaks
+from photutils.detection import find_peaks, IRAFStarFinder
 from photutils.background import MADStdBackgroundRMS
-from photutils import CircularAperture
-from photutils import IRAFStarFinder
 
 from typing import Dict, Tuple
 
@@ -107,44 +105,24 @@ def find_duplicates(tbl : QTable, delta: float = 0.3):
 
     tbl.remove_rows(sorted(rows_to_delete))
 
-def calc_fwhm(tbl : QTable, data : np.ndarray, threshold : float, box_size : int = 16, sigma_psf = 1.0, max_stars : int = 200):
-    tbl.sort('peak_value', reverse=True)
-    tbl.add_column(-1.0, name='fwhm')
-    tbl_len = len(tbl)
-    max_x = data.shape[1]
-    max_y = data.shape[0]
-    fwhm_sigma = sigma_psf * gaussian_sigma_to_fwhm
-    starFinder = IRAFStarFinder(threshold=threshold, fwhm=fwhm_sigma, exclude_border=True, sigma_radius=4, brightest=1)
+def calc_fwhm(tbl : QTable, data : np.ndarray, radius = 4.) -> QTable:
+    centroids = np.transpose((tbl['x_centroid'], tbl['y_centroid']))
+    aperture = CircularAperture(centroids, radius)
 
-    found = 0
+    aperstats = ApertureStats(data, aperture)
+    stars = aperstats.to_table()
+    star_count = len(stars)
     to_remove = []
-    for i in range(0, tbl_len):
-        if (found >= max_stars):
-            to_remove.append(i)
-            continue
-
-        x = tbl[i]['x_centroid']
-        y = tbl[i]['y_centroid']
-        
-        window = data[
-            max(0, int(y - box_size)):min(max_y - 1, int(y + box_size)),
-            max(0, int(x - box_size)):min(max_x - 1, int(x + box_size))
-        ]
-
-        try:
-            stars = starFinder(window)
-            if (stars is None):
-                to_remove.append(i)
-            else:
-                tbl[i]['fwhm'] = stars[0]['fwhm']
-                found = found + 1
-        except Exception as e:
-            # print(x, max_x, y, max_y, window.size)
+    for i in range(0, star_count):
+        fwhm = stars[i]['fwhm']
+        if np.isnan(fwhm):
             to_remove.append(i)
     
-    tbl.remove_rows(to_remove)
+    stars.remove_rows(to_remove)
+    stars.show_in_browser()
+    return stars
 
-def find_brightest_stars(data : np.ndarray, max_stars: int = 100) -> QTable:
+def find_brightest_stars(data : np.ndarray) -> QTable:
     bkg_subst, std = background_substraction(data)
     threshold = 30. * std
 
@@ -152,9 +130,9 @@ def find_brightest_stars(data : np.ndarray, max_stars: int = 100) -> QTable:
 
     find_duplicates(tbl, delta = 1.1)
 
-    calc_fwhm(tbl, bkg_subst, threshold, max_stars=max_stars)
+    stars = calc_fwhm(tbl, bkg_subst)
     
-    return tbl
+    return stars
 
 def display_stars(tbl: QTable, data: np.ndarray):
     positions = np.transpose((tbl['x_centroid'], tbl['y_centroid']))
@@ -169,16 +147,16 @@ def display_stars(tbl: QTable, data: np.ndarray):
 
 def analyse_frame(filePath: Path) -> Dict[str, any]:
     testData = open_test_file(filePath)
-    stars = find_brightest_stars(testData, max_stars=200)
+    stars = find_brightest_stars(testData)
     return {
         'frame': filePath.name,
         'stars': len(stars),
-        'median_peak_value': np.median(stars['peak_value']),
+        'median_peak_value': np.median(stars['max']),
         'median_fwhm': np.median(stars['fwhm'])
     }
 
 if __name__ == '__main__':
-    matplotlib.use("TkAgg")
+    # matplotlib.use("TkAgg")
     pool = mp.Pool()
 
     absFilePathes = [testDataPath / name for name in frameSequenceNames]
